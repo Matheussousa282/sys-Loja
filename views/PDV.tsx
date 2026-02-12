@@ -1,4 +1,5 @@
 
+// Componente PDV com correções de tipagem explícita para evitar erros de 'unknown'.
 import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { useApp } from '../AppContext';
 import { useNavigate } from 'react-router-dom';
@@ -499,12 +500,14 @@ const PDV: React.FC = () => {
           </div>
           <div className="h-8 w-px bg-slate-200 dark:border-slate-800 mx-2"></div>
           <div className="flex gap-2 overflow-x-auto no-scrollbar max-w-[450px]">
-             {categories.map(cat => (
+             {/* Adicionado tipagem explícita para evitar erro de unknown */}
+             {categories.map((cat: string) => (
                <button key={cat} onClick={() => setCategory(cat)} className={`px-4 py-2 rounded-xl text-[10px] font-black uppercase transition-all whitespace-nowrap ${category === cat ? 'bg-primary text-white shadow-lg' : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200'}`}>{cat}</button>
              ))}
           </div>
         </div>
         <div className="flex gap-3">
+           <button onClick={() => navigate('/consignados')} className="px-5 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl font-black text-[10px] hover:bg-primary hover:text-white transition-all uppercase flex items-center gap-2"><span className="material-symbols-outlined text-lg">inventory</span> Módulo Consignado</button>
            <button onClick={() => { setCancelSearchId(''); setShowCancelModal(true); }} className="px-5 py-2.5 bg-rose-500/10 text-rose-500 rounded-xl font-black text-[10px] hover:bg-rose-500 hover:text-white transition-all uppercase flex items-center gap-2"><span className="material-symbols-outlined text-lg">cancel</span> Cancelamento</button>
            <button onClick={() => { setReturnSearchTerm(''); setShowReturnsModal(true); }} className="px-5 py-2.5 bg-amber-500/10 text-amber-600 rounded-xl font-black text-[10px] hover:bg-amber-500 hover:text-white transition-all uppercase flex items-center gap-2"><span className="material-symbols-outlined text-lg">history</span> Trocas</button>
            <button onClick={() => setShowPriceInquiry(true)} className="px-5 py-2.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-xl font-black text-[10px] hover:bg-primary hover:text-white transition-all uppercase flex items-center gap-2"><span className="material-symbols-outlined text-lg">sell</span> Consulta Preço</button>
@@ -553,7 +556,8 @@ const PDV: React.FC = () => {
                      className={`w-full h-12 bg-slate-50 dark:bg-slate-800 border-2 rounded-xl px-4 text-[10px] font-black uppercase transition-all ${!selectedVendorId ? 'border-rose-500/20' : 'border-transparent focus:border-primary'}`}
                    >
                       <option value="">SELECIONE VENDEDOR</option>
-                      {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                      {/* Adicionado tipagem explícita para evitar erro de unknown */}
+                      {vendors.map((v: User) => <option key={v.id} value={v.id}>{v.name}</option>)}
                    </select>
                 </div>
                 <div className="space-y-1.5">
@@ -563,7 +567,8 @@ const PDV: React.FC = () => {
                    </div>
                    <select value={selectedCustomerId} onChange={e => setSelectedCustomerId(e.target.value)} className="w-full h-12 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 text-[10px] font-black uppercase">
                       <option value="">Consumidor Final</option>
-                      {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                      {/* Adicionado tipagem explícita para evitar erro de unknown */}
+                      {customers.map((c: Customer) => <option key={c.id} value={c.id}>{c.name}</option>)}
                    </select>
                 </div>
              </div>
@@ -667,7 +672,8 @@ const PDV: React.FC = () => {
                     <input autoFocus value={priceInquirySearch} onChange={e => setPriceInquirySearch(e.target.value)} placeholder="NOME DO PRODUTO OU SKU..." className="w-full h-20 bg-slate-50 dark:bg-slate-800 border-none rounded-[1.5rem] pl-20 pr-6 text-2xl font-black text-slate-900 dark:text-white outline-none focus:ring-4 focus:ring-primary/10 transition-all uppercase" />
                  </div>
                  <div className="space-y-4">
-                    {inquiryResults.map(p => (
+                    {/* Adicionado tipagem explícita para evitar erro de unknown */}
+                    {inquiryResults.map((p: Product) => (
                        <div key={p.id} className="flex items-center gap-6 p-6 bg-slate-50 dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 animate-in slide-in-from-bottom-2">
                           <img src={p.image} className="size-20 rounded-2xl object-cover" />
                           <div className="flex-1">

@@ -17,6 +17,7 @@ import Login from './views/Login';
 import CashMovement from './views/CashMovement';
 import CardManagement from './views/CardManagement';
 import SalesInquiry from './views/SalesInquiry';
+import Consignments from './views/Consignments';
 import { UserRole } from './types';
 
 const ProtectedRoute = ({ children, perm }: { children?: React.ReactNode, perm?: string }) => {
@@ -60,6 +61,7 @@ const AppRoutes: React.FC = () => {
     <Routes>
       <Route path="/" element={<Layout><Dashboard /></Layout>} />
       <Route path="/pdv" element={<ProtectedRoute perm="pdv"><PDV /></ProtectedRoute>} />
+      <Route path="/consignados" element={<Layout><ProtectedRoute perm="pdv"><Consignments /></ProtectedRoute></Layout>} />
       <Route path="/documentos" element={<Layout><SalesInquiry /></Layout>} />
       <Route path="/caixa" element={<Layout><ProtectedRoute perm="cashControl"><CashMovement /></ProtectedRoute></Layout>} />
       <Route path="/clientes" element={<Layout><ProtectedRoute perm="customers"><Customers /></ProtectedRoute></Layout>} />

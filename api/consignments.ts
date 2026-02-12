@@ -1,0 +1,66 @@
+
+import { neon } from '@neondatabase/serverless';
+
+export default async function handler(req: any, res: any) {
+  if (!process.env.DATABASE_URL) return res.status(500).json({ error: 'DATABASE_URL não configurada' });
+  const sql = neon(process.env.DATABASE_URL);
+
+  if (req.method === 'GET') {
+    try {
+      const data = await sql`SELECT * FROM consignment_sales ORDER BY date DESC`;
+      const mapped = data.map(s => ({
+        id: s.id,
+        customerId: s.customer_id,
+        customerName: s.customer_name,
+        date: s.date,
+        grossValue: Number(s.gross_value),
+        discount: Number(s.discount),
+        netValue: Number(s.net_value),
+        paidValue: Number(s.paid_value),
+        balance: Number(s.balance),
+        status: s.status,
+        observation: s.observation,
+        items: s.items,
+        store: s.store
+      }));
+      return res.status(200).json(mapped);
+    } catch (error: any) {
+      return res.status(500).json({ error: error.message });
+    }
+  }
+
+  if (req.method === 'POST') {
+    try {
+      const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
+      
+      if (body.type === 'RETURN') {
+        await sql`
+          INSERT INTO consignment_returns (id, consignment_id, product_id, product_name, quantity, value, date, reason)
+          VALUES (${body.id}, ${body.consignmentId}, ${body.productId}, ${body.productName}, ${body.quantity}, ${body.value}, ${body.date}, ${body.reason})
+        `;
+        return res.status(200).json({ success: true });
+      } else {
+        await sql`
+          INSERT INTO consignment_sales (
+            id, customer_id, customer_name, date, gross_value, discount, net_value, paid_value, balance, status, observation, items, store
+          )
+          VALUES (
+            ${body.id}, ${body.customerId}, ${body.customerName}, ${body.date}, ${body.grossValue}, ${body.discount}, 
+            ${body.netValue}, ${body.paidValue}, ${body.balance}, ${body.status}, ${body.observation}, ${JSON.stringify(body.items)}, ${body.store}
+          )
+          ON CONFLICT (id) DO UPDATE SET
+            paid_value = EXCLUDED.paid_value,
+            balance = EXCLUDED.balance,
+            status = EXCLUDED.status,
+            observation = EXCLUDED.observation,
+            items = EXCLUDED.items
+        `;
+        return res.status(200).json({ success: true });
+      }
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  return res.status(405).json({ error: 'Method not allowed' });
+}

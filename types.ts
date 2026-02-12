@@ -30,7 +30,7 @@ export enum TransactionStatus {
   PAID = 'PAGO',
   PENDING = 'PENDENTE',
   OVERDUE = 'ATRASADO',
-  APPROVED = 'ATRASADO',
+  APPROVED = 'APROVADO',
   CANCELLED = 'CANCELADO'
 }
 
@@ -45,6 +45,13 @@ export enum CashSessionStatus {
   PENDING = 'ABERTURA PENDENTE',
   OPEN = 'ABERTO',
   CLOSED = 'FECHADO'
+}
+
+export enum ConsignmentStatus {
+  OPEN = 'EM ABERTO',
+  PARTIAL = 'PARCIALMENTE PAGO',
+  PAID = 'PAGO',
+  CANCELLED = 'CANCELADO'
 }
 
 export interface CardOperator {
@@ -77,6 +84,18 @@ export interface CashSession {
   priceTable: string; 
 }
 
+// Added CashEntry interface to fix import error in views/CashMovement.tsx
+export interface CashEntry {
+  id: string;
+  sessionId: string;
+  type: 'INCOME' | 'EXPENSE';
+  category: string;
+  description: string;
+  value: number;
+  timestamp: string;
+  method?: string;
+}
+
 export interface ServiceOrder {
   id: string;
   date: string;
@@ -89,6 +108,33 @@ export interface ServiceOrder {
   technicianName?: string;
   expectedDate?: string;
   store: string;
+}
+
+export interface ConsignmentSale {
+  id: string;
+  customerId: string;
+  customerName: string;
+  date: string;
+  grossValue: number;
+  discount: number;
+  netValue: number;
+  paidValue: number;
+  balance: number;
+  status: ConsignmentStatus;
+  observation?: string;
+  items: CartItem[];
+  store: string;
+}
+
+export interface ConsignmentReturn {
+  id: string;
+  consignmentId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  value: number;
+  date: string;
+  reason?: string;
 }
 
 export interface Transaction {
@@ -113,6 +159,7 @@ export interface Transaction {
   transactionSku?: string;
   cardOperatorId?: string;
   cardBrandId?: string;
+  consignmentId?: string; // Vinculo opcional
 }
 
 export interface User {
@@ -149,6 +196,7 @@ export interface RolePermissions {
   settings: boolean;
   serviceOrders: boolean;
   cardManagement: boolean;
+  editProducts: boolean;
 }
 
 export interface Customer {
