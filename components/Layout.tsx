@@ -16,11 +16,27 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [theme, setTheme] = useState<'dark' | 'light'>(
+    (localStorage.getItem('theme') as 'dark' | 'light') || 'dark'
+  );
+  
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     'VENDAS': true,
     'ESTOQUE': false,
     'FINANCEIRO': true
   });
+
+  // Gerenciamento do Tema
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === 'dark' ? 'light' : 'dark');
 
   const menuStructure: MenuItem[] = [
     { path: '/', label: 'DASHBOARD', icon: 'dashboard', perm: 'dashboard' },
@@ -78,7 +94,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   };
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-[#0b1118]">
+    <div className="flex h-screen bg-background-light dark:bg-[#0b1118] transition-colors duration-300">
       <aside className={`${sidebarOpen ? 'w-72' : 'w-20'} bg-[#101822] border-r border-slate-800 transition-all flex flex-col shadow-2xl z-40`}>
         <div className="p-6 flex items-center gap-4 border-b border-slate-800/50">
           <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/20">
@@ -152,7 +168,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 
         <div className="p-4 border-t border-slate-800/50 space-y-4">
           <div className="flex items-center gap-3 p-2 bg-slate-800/30 rounded-2xl">
-             <div className="size-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-black shadow-inner">
+             <div className="size-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-black shadow-inner uppercase">
                 {currentUser?.name.charAt(0)}
              </div>
              {sidebarOpen && (
@@ -171,27 +187,37 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       </aside>
 
       <main className="flex-1 overflow-hidden flex flex-col">
-        <header className="h-16 bg-white dark:bg-[#101822] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 z-30 shadow-sm">
+        <header className="h-16 bg-white dark:bg-[#101822] border-b border-slate-200 dark:border-slate-800 flex items-center justify-between px-8 z-30 shadow-sm transition-colors duration-300">
            <div className="flex items-center gap-4">
               <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-slate-400 hover:text-primary transition-colors">
                 <span className="material-symbols-outlined">menu_open</span>
               </button>
               <div className="flex items-center gap-2">
                  <span className="size-2 bg-emerald-500 rounded-full animate-pulse"></span>
-                 <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">SISTEMA OPERACIONAL</span>
+                 <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">SISTEMA OPERACIONAL</span>
               </div>
            </div>
            
            <div className="flex items-center gap-6">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</span>
-              <div className="h-4 w-px bg-slate-800 mx-2"></div>
+              {/* BOTÃO DARK MODE */}
+              <button 
+                onClick={toggleTheme}
+                className="size-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:scale-105 transition-all"
+              >
+                <span className="material-symbols-outlined text-xl">
+                  {theme === 'dark' ? 'light_mode' : 'dark_mode'}
+                </span>
+              </button>
+
+              <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hidden sm:block">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</span>
+              <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
               <div className="flex items-center gap-3">
-                 <span className="material-symbols-outlined text-slate-400 text-xl">wb_sunny</span>
-                 <span className="text-[10px] font-black text-primary uppercase tracking-widest">LOCAL</span>
+                 <span className="material-symbols-outlined text-slate-400 text-xl">cloud_done</span>
+                 <span className="text-[10px] font-black text-primary uppercase tracking-widest">ONLINE</span>
               </div>
            </div>
         </header>
-        <div className="flex-1 overflow-y-auto bg-slate-50 dark:bg-[#0b1118] custom-scrollbar">
+        <div className="flex-1 overflow-y-auto bg-background-light dark:bg-[#0b1118] custom-scrollbar transition-colors duration-300">
            {children}
         </div>
       </main>
