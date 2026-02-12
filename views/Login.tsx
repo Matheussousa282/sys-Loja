@@ -16,13 +16,18 @@ const Login: React.FC = () => {
     setLoading(true);
     setError('');
     
-    const success = await login(username, password);
-    if (success) {
-      navigate('/');
-    } else {
-      setError('Acesso negado. Verifique se o nome e a senha estão corretos.');
+    try {
+      const success = await login(username, password);
+      if (success) {
+        navigate('/');
+      } else {
+        setError('Acesso negado. Verifique se o nome e a senha estão corretos.');
+      }
+    } catch (err) {
+      setError('Ocorreu um erro ao tentar acessar o sistema.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   return (
@@ -41,12 +46,12 @@ const Login: React.FC = () => {
                 <span className="material-symbols-outlined text-4xl">storefront</span>
               </div>
             )}
-            <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter text-center">{systemConfig.companyName}</h1>
+            <h1 className="text-2xl font-black text-slate-900 dark:text-white uppercase tracking-tighter text-center">{systemConfig.companyName || 'ERP RETAIL'}</h1>
             <p className="text-slate-500 text-xs font-bold uppercase tracking-widest mt-1 text-center">Gestão Cloud ERP</p>
           </div>
 
           {error && (
-            <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl text-[10px] font-black text-center animate-in shake duration-300 uppercase tracking-widest">
+            <div className="mb-6 p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-2xl text-[10px] font-black text-center animate-in shake duration-300 uppercase tracking-widest leading-relaxed">
               {error}
             </div>
           )}
@@ -87,15 +92,26 @@ const Login: React.FC = () => {
               disabled={loading}
               className="w-full h-16 bg-primary hover:bg-blue-600 text-white rounded-[2rem] font-black text-sm uppercase tracking-widest shadow-xl shadow-primary/20 transition-all flex items-center justify-center gap-3 active:scale-95 disabled:opacity-50"
             >
-              {loading ? <span className="material-symbols-outlined animate-spin">sync</span> : 'Acessar Terminal'}
+              {loading ? (
+                <div className="size-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+              ) : 'Acessar Terminal'}
             </button>
           </form>
 
           <div className="mt-10 pt-8 border-t border-slate-100 dark:border-slate-800 flex flex-col items-center">
-             <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">Tem Acessórios • v4.5.2</p>
+             <p className="text-[10px] font-black text-slate-300 uppercase tracking-widest">TEM ACESSÓRIOS • v4.5.2</p>
           </div>
         </div>
       </div>
+
+      <style>{`
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          25% { transform: translateX(-5px); }
+          75% { transform: translateX(5px); }
+        }
+        .animate-in.shake { animation: shake 0.2s ease-in-out 0s 2; }
+      `}</style>
     </div>
   );
 };

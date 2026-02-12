@@ -1,4 +1,25 @@
 
+export interface PriceTable {
+  id: string;
+  description: string;
+  start_date: string;
+  end_date: string;
+  type: 'VAREJO' | 'ATACADO';
+  active: boolean;
+}
+
+export interface PriceTableItem {
+  id: string;
+  price_table_id: string;
+  product_id: string;
+  product_sku: string;
+  product_name: string;
+  price_1: number;
+  price_2: number;
+  price_3: number;
+  last_update: string;
+}
+
 export interface Product {
   id: string;
   name: string;
@@ -24,6 +45,7 @@ export interface Product {
 
 export interface CartItem extends Product {
   quantity: number;
+  priceLevel?: number; // 1, 2 ou 3
 }
 
 export enum TransactionStatus {
@@ -197,6 +219,8 @@ export interface RolePermissions {
   serviceOrders: boolean;
   cardManagement: boolean;
   editProducts: boolean;
+  accountsReceivable: boolean;
+  consignment: boolean;
 }
 
 export interface Customer {

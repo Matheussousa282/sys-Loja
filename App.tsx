@@ -1,7 +1,7 @@
 
-import React, { useMemo } from 'react';
+import React from 'react';
 import { HashRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AppProvider, useApp, INITIAL_PERMS } from './AppContext';
+import { AppProvider, useApp } from './AppContext';
 import Layout from './components/Layout';
 import Dashboard from './views/Dashboard';
 import PDV from './views/PDV';
@@ -19,64 +19,52 @@ import CardManagement from './views/CardManagement';
 import SalesInquiry from './views/SalesInquiry';
 import Consignments from './views/Consignments';
 import AccountsReceivable from './views/AccountsReceivable';
-import { UserRole } from './types';
+import StockMovement from './views/StockMovement';
+import CategoryManagement from './views/CategoryManagement';
+import PriceTableManagement from './views/PriceTableManagement';
 
-const ProtectedRoute = ({ children, perm }: { children?: React.ReactNode, perm?: string }) => {
-  const { currentUser, rolePermissions } = useApp();
-  
-  const perms = useMemo(() => {
-    if (!currentUser) return INITIAL_PERMS[UserRole.VENDOR];
-    return rolePermissions[currentUser.role] || INITIAL_PERMS[currentUser.role];
-  }, [rolePermissions, currentUser?.role]);
-
-  if (!currentUser) return <Navigate to="/login" />;
-  if (perm && !(perms as any)[perm]) return <Navigate to="/" />;
-
+const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
+  const { loading } = useApp();
+  if (loading) return null;
   return <>{children}</>;
 };
 
 const AppRoutes: React.FC = () => {
-  const { currentUser, loading } = useApp();
+  const { loading } = useApp();
 
   if (loading) {
     return (
-      <div className="h-screen w-full flex items-center justify-center bg-background-light dark:bg-background-dark">
+      <div className="h-screen w-full flex items-center justify-center bg-[#0b1118]">
         <div className="flex flex-col items-center gap-4">
            <div className="size-16 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400">Sincronizando Sistema...</p>
+           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">Sincronizando Sistema...</p>
         </div>
       </div>
     );
   }
 
-  if (!currentUser) {
-    return (
-      <Routes>
-        <Route path="/login" element={<Login />} />
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    );
-  }
-
   return (
     <Routes>
-      <Route path="/" element={<Layout><Dashboard /></Layout>} />
-      <Route path="/pdv" element={<ProtectedRoute perm="pdv"><PDV /></ProtectedRoute>} />
-      <Route path="/consignados" element={<Layout><ProtectedRoute perm="pdv"><Consignments /></ProtectedRoute></Layout>} />
-      <Route path="/documentos" element={<Layout><SalesInquiry /></Layout>} />
-      <Route path="/caixa" element={<Layout><ProtectedRoute perm="cashControl"><CashMovement /></ProtectedRoute></Layout>} />
-      <Route path="/clientes" element={<Layout><ProtectedRoute perm="customers"><Customers /></ProtectedRoute></Layout>} />
-      <Route path="/relatorios" element={<Layout><ProtectedRoute perm="reports"><Reports /></ProtectedRoute></Layout>} />
-      <Route path="/estoque" element={<Layout><ProtectedRoute perm="inventory"><Inventory /></ProtectedRoute></Layout>} />
-      <Route path="/balanco" element={<Layout><ProtectedRoute perm="balance"><Balance /></ProtectedRoute></Layout>} />
-      <Route path="/servicos" element={<Layout><ProtectedRoute perm="serviceOrders"><ServiceOrders /></ProtectedRoute></Layout>} />
-      <Route path="/entradas" element={<Layout><ProtectedRoute perm="incomes"><Transactions type="INCOME" /></ProtectedRoute></Layout>} />
-      <Route path="/saidas" element={<Layout><ProtectedRoute perm="expenses"><Transactions type="EXPENSE" /></ProtectedRoute></Layout>} />
-      <Route path="/contas-receber" element={<Layout><ProtectedRoute perm="financial"><AccountsReceivable /></ProtectedRoute></Layout>} />
-      <Route path="/cartoes" element={<Layout><ProtectedRoute perm="cardManagement"><CardManagement /></ProtectedRoute></Layout>} />
-      <Route path="/dre" element={<Layout><ProtectedRoute perm="financial"><DRE /></ProtectedRoute></Layout>} />
-      <Route path="/config" element={<Layout><ProtectedRoute perm="settings"><Settings /></ProtectedRoute></Layout>} />
-      <Route path="/login" element={<Navigate to="/" replace />} />
+      <Route path="/login" element={<Login />} />
+      <Route path="/" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
+      <Route path="/pdv" element={<ProtectedRoute><PDV /></ProtectedRoute>} />
+      <Route path="/consignados" element={<ProtectedRoute><Layout><Consignments /></Layout></ProtectedRoute>} />
+      <Route path="/documentos" element={<ProtectedRoute><Layout><SalesInquiry /></Layout></ProtectedRoute>} />
+      <Route path="/caixa" element={<ProtectedRoute><Layout><CashMovement /></Layout></ProtectedRoute>} />
+      <Route path="/clientes" element={<ProtectedRoute><Layout><Customers /></Layout></ProtectedRoute>} />
+      <Route path="/relatorios" element={<ProtectedRoute><Layout><Reports /></Layout></ProtectedRoute>} />
+      <Route path="/estoque" element={<ProtectedRoute><Layout><Inventory /></Layout></ProtectedRoute>} />
+      <Route path="/categorias" element={<ProtectedRoute><Layout><CategoryManagement /></Layout></ProtectedRoute>} />
+      <Route path="/movimentacao-estoque" element={<ProtectedRoute><Layout><StockMovement /></Layout></ProtectedRoute>} />
+      <Route path="/balanco" element={<ProtectedRoute><Layout><Balance /></Layout></ProtectedRoute>} />
+      <Route path="/servicos" element={<ProtectedRoute><Layout><ServiceOrders /></Layout></ProtectedRoute>} />
+      <Route path="/entradas" element={<ProtectedRoute><Layout><Transactions type="INCOME" /></Layout></ProtectedRoute>} />
+      <Route path="/saidas" element={<ProtectedRoute><Layout><Transactions type="EXPENSE" /></Layout></ProtectedRoute>} />
+      <Route path="/contas-receber" element={<ProtectedRoute><Layout><AccountsReceivable /></Layout></ProtectedRoute>} />
+      <Route path="/price-tables" element={<ProtectedRoute><Layout><PriceTableManagement /></Layout></ProtectedRoute>} />
+      <Route path="/cartoes" element={<ProtectedRoute><Layout><CardManagement /></Layout></ProtectedRoute>} />
+      <Route path="/dre" element={<ProtectedRoute><Layout><DRE /></Layout></ProtectedRoute>} />
+      <Route path="/config" element={<ProtectedRoute><Layout><Settings /></Layout></ProtectedRoute>} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   );

@@ -35,7 +35,8 @@ const Settings: React.FC = () => {
   const ALL_PERM_KEYS: (keyof RolePermissions)[] = [
     'dashboard', 'pdv', 'cashControl', 'customers', 'reports', 
     'inventory', 'balance', 'incomes', 'expenses', 
-    'financial', 'settings', 'serviceOrders', 'cardManagement', 'editProducts'
+    'financial', 'settings', 'serviceOrders', 'cardManagement', 'editProducts',
+    'accountsReceivable', 'consignment'
   ];
 
   useEffect(() => {
@@ -54,6 +55,16 @@ const Settings: React.FC = () => {
       setLocalPerms({ ...INITIAL_PERMS[selectedRolePerm] });
     }
   }, [selectedRolePerm, rolePermissions]);
+
+  // Efeito de Debounce para salvar o nome da empresa instantaneamente
+  useEffect(() => {
+    if (localConfig.companyName !== systemConfig.companyName) {
+      const timeoutId = setTimeout(() => {
+        updateConfig(localConfig);
+      }, 500); // 500ms de atraso para evitar excesso de requisições enquanto digita
+      return () => clearTimeout(timeoutId);
+    }
+  }, [localConfig.companyName]);
 
   const filteredUsers = users.filter(u => isAdmin || u.storeId === currentUser?.storeId);
   const filteredStores = establishments.filter(e => isAdmin || e.id === currentUser?.storeId);
@@ -125,6 +136,20 @@ const Settings: React.FC = () => {
     setLocalPerms({ ...localPerms, [key]: !localPerms[key] });
   };
 
+  const handleLogoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if(file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const newLogoUrl = reader.result as string;
+        const newConfig = { ...localConfig, logoUrl: newLogoUrl };
+        setLocalConfig(newConfig);
+        updateConfig(newConfig); // Salva instantaneamente ao carregar
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   return (
     <div className="p-8 space-y-8 animate-in fade-in duration-500 pb-20">
       <div className="flex flex-col gap-1">
@@ -151,28 +176,30 @@ const Settings: React.FC = () => {
                    <div className="flex-1 space-y-6">
                       <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-1">
-                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Nome Comercial</label>
-                           <input type="text" value={localConfig.companyName} onChange={e => setLocalConfig({...localConfig, companyName: e.target.value})} className="w-full h-14 bg-slate-50 dark:bg-slate-800 rounded-2xl px-6 font-black text-sm border-none outline-none focus:ring-2 focus:ring-primary uppercase" />
+                           <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Nome Comercial (Instantâneo)</label>
+                           <input 
+                             type="text" 
+                             value={localConfig.companyName} 
+                             onChange={e => setLocalConfig({...localConfig, companyName: e.target.value})} 
+                             className="w-full h-14 bg-slate-50 dark:bg-slate-800 rounded-2xl px-6 font-black text-sm border-none outline-none focus:ring-2 focus:ring-primary uppercase" 
+                           />
                         </div>
                         <div className="space-y-1">
                            <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest px-2">Prazo para Troca (Dias)</label>
                            <input type="number" value={localConfig.returnPeriodDays} onChange={e => setLocalConfig({...localConfig, returnPeriodDays: parseInt(e.target.value) || 30})} className="w-full h-14 bg-slate-50 dark:bg-slate-800 rounded-2xl px-6 font-black text-sm border-none outline-none focus:ring-2 focus:ring-primary" />
                         </div>
                       </div>
-                      <button onClick={() => logoInputRef.current?.click()} className="text-[10px] font-black text-primary uppercase underline">Subir Logotipo</button>
-                      <input type="file" ref={logoInputRef} className="hidden" onChange={e => {
-                         const file = e.target.files?.[0];
-                         if(file) {
-                            const reader = new FileReader();
-                            reader.onloadend = () => setLocalConfig({...localConfig, logoUrl: reader.result as string});
-                            reader.readAsDataURL(file);
-                         }
-                      }} />
+                      <button onClick={() => logoInputRef.current?.click()} className="text-[10px] font-black text-primary uppercase underline">Trocar Logotipo Agora</button>
+                      <input type="file" ref={logoInputRef} className="hidden" accept="image/*" onChange={handleLogoChange} />
                    </div>
+                </div>
+                <div className="bg-primary/5 p-4 rounded-2xl border border-primary/10 flex items-center gap-4">
+                   <span className="material-symbols-outlined text-primary">auto_awesome</span>
+                   <p className="text-[10px] font-black uppercase text-primary tracking-widest">O nome e o logotipo são atualizados automaticamente em todo o ERP ao serem alterados acima.</p>
                 </div>
                 <button onClick={handleSaveConfig} className="w-full h-16 bg-primary text-white rounded-2xl font-black text-xs uppercase tracking-widest shadow-xl flex items-center justify-center gap-2">
                   {isSaving ? <span className="material-symbols-outlined animate-spin">sync</span> : null}
-                  {isSaving ? 'Salvando...' : 'Atualizar Configurações'}
+                  {isSaving ? 'Salvando...' : 'Confirmar Ajustes Extras'}
                 </button>
              </div>
           </div>
@@ -373,7 +400,9 @@ const getLabelForModule = (key: string) => {
     settings: 'Configurações Sistema',
     serviceOrders: 'Ordens de Serviço',
     cardManagement: 'Gestão de Cartões',
-    editProducts: 'Habilitar Alteração de Produtos'
+    editProducts: 'Habilitar Alteração de Produtos',
+    accountsReceivable: 'Contas a Receber',
+    consignment: 'Consignados'
   };
   return labels[key] || key;
 };
@@ -393,7 +422,9 @@ const getIconForModule = (key: string) => {
     settings: 'settings',
     serviceOrders: 'build',
     cardManagement: 'credit_card',
-    editProducts: 'edit_square'
+    editProducts: 'edit_square',
+    accountsReceivable: 'pending_actions',
+    consignment: 'inventory'
   };
   return icons[key] || 'label';
 };

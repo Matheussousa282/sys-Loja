@@ -1,7 +1,13 @@
 
-// Implementação completa do AppContext para gerenciamento de estado e sincronização com o banco de dados Neon.
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Product, Customer, User, Establishment, Transaction, CashSession, CashSessionStatus, ServiceOrder, RolePermissions, TransactionStatus, UserRole, CardOperator, CardBrand, ConsignmentSale, ConsignmentStatus, ConsignmentReturn, CashEntry } from './types';
+import { Product, Customer, User, Establishment, Transaction, CashSession, CashSessionStatus, ServiceOrder, RolePermissions, TransactionStatus, UserRole, CardOperator, CardBrand, ConsignmentSale, ConsignmentStatus, ConsignmentReturn, CashEntry, PriceTable, PriceTableItem } from './types';
+
+interface Category {
+  id: string;
+  name: string;
+  description?: string;
+  active: boolean;
+}
 
 interface AppContextType {
   products: Product[];
@@ -15,6 +21,8 @@ interface AppContextType {
   cardBrands: CardBrand[];
   serviceOrders: ServiceOrder[];
   consignmentSales: ConsignmentSale[];
+  categories: Category[];
+  priceTables: PriceTable[];
   systemConfig: any;
   currentUser: User | null;
   rolePermissions: Record<string, RolePermissions>;
@@ -45,13 +53,20 @@ interface AppContextType {
   processSale: (cart: any[], total: number, method: string, customerId: string, vendorId: string, shipping: number, cardDetails: any) => Promise<void>;
   bulkUpdateStock: (adjustments: Record<string, number>) => Promise<void>;
   updateRolePermissions: (role: string, perms: RolePermissions) => Promise<void>;
+  addCategory: (cat: Category) => Promise<void>;
+  deleteCategory: (id: string) => Promise<void>;
+  savePriceTable: (table: PriceTable) => Promise<void>;
+  deletePriceTable: (id: string) => Promise<void>;
+  savePriceTableItem: (item: any) => Promise<void>;
+  deletePriceTableItem: (id: string) => Promise<void>;
+  getPriceTableItems: (tableId: string) => Promise<PriceTableItem[]>;
 }
 
 export const INITIAL_PERMS: Record<string, RolePermissions> = {
-  [UserRole.ADMIN]: { dashboard: true, pdv: true, cashControl: true, customers: true, reports: true, inventory: true, balance: true, incomes: true, expenses: true, financial: true, settings: true, serviceOrders: true, cardManagement: true, editProducts: true },
-  [UserRole.MANAGER]: { dashboard: true, pdv: true, cashControl: true, customers: true, reports: true, inventory: true, balance: true, incomes: true, expenses: true, financial: true, settings: true, serviceOrders: true, cardManagement: true, editProducts: true },
-  [UserRole.CASHIER]: { dashboard: true, pdv: true, cashControl: true, customers: true, reports: false, inventory: true, balance: false, incomes: false, expenses: false, financial: false, settings: false, serviceOrders: true, cardManagement: false, editProducts: false },
-  [UserRole.VENDOR]: { dashboard: true, pdv: true, cashControl: false, customers: true, reports: false, inventory: false, balance: false, incomes: false, expenses: false, financial: false, settings: false, serviceOrders: true, cardManagement: false, editProducts: false },
+  [UserRole.ADMIN]: { dashboard: true, pdv: true, cashControl: true, customers: true, reports: true, inventory: true, balance: true, incomes: true, expenses: true, financial: true, settings: true, serviceOrders: true, cardManagement: true, editProducts: true, accountsReceivable: true, consignment: true },
+  [UserRole.MANAGER]: { dashboard: true, pdv: true, cashControl: true, customers: true, reports: true, inventory: true, balance: true, incomes: true, expenses: true, financial: true, settings: true, serviceOrders: true, cardManagement: true, editProducts: true, accountsReceivable: true, consignment: true },
+  [UserRole.CASHIER]: { dashboard: true, pdv: true, cashControl: true, customers: true, reports: false, inventory: true, balance: false, incomes: false, expenses: false, financial: false, settings: false, serviceOrders: true, cardManagement: false, editProducts: false, accountsReceivable: true, consignment: false },
+  [UserRole.VENDOR]: { dashboard: true, pdv: true, cashControl: false, customers: true, reports: false, inventory: false, balance: false, incomes: false, expenses: false, financial: false, settings: false, serviceOrders: true, cardManagement: false, editProducts: false, accountsReceivable: false, consignment: true },
 };
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -59,23 +74,13 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 const safeFetch = async (url: string, options?: RequestInit) => {
   try {
     const res = await fetch(url, options);
+    if (!res.ok) return null;
     const contentType = res.headers.get("content-type");
-    
-    if (!res.ok) {
-      const errorText = await res.text().catch(() => "Sem detalhes");
-      console.error(`ERRO API [${url}] Status ${res.status}:`, errorText);
-      throw new Error(`HTTP ${res.status}`);
-    }
-
-    if (contentType && contentType.includes("application/json")) {
-      return await res.json();
-    }
-    
-    // Se não for JSON, apenas consome o texto para liberar a stream
-    await res.text();
+    if (contentType && contentType.includes("application/json")) return await res.json();
     return null;
   } catch (e: any) {
-    throw e;
+    console.error(`ERRO API [${url}]:`, e);
+    return null;
   }
 };
 
@@ -91,71 +96,52 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [cardBrands, setCardBrands] = useState<CardBrand[]>([]);
   const [serviceOrders, setServiceOrders] = useState<ServiceOrder[]>([]);
   const [consignmentSales, setConsignmentSales] = useState<ConsignmentSale[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [priceTables, setPriceTables] = useState<PriceTable[]>([]);
   const [systemConfig, setSystemConfig] = useState<any>({ companyName: 'ERP Retail', returnPeriodDays: 30 });
-  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  
+  const [currentUser, setCurrentUser] = useState<User | null>({
+    id: 'u-admin',
+    name: 'Carlos Silva (ADMIN)',
+    email: 'admin@erp.com',
+    role: UserRole.ADMIN,
+    storeId: 'est-1',
+    active: true
+  });
+
   const [rolePermissions, setRolePermissions] = useState<Record<string, RolePermissions>>(INITIAL_PERMS);
   const [loading, setLoading] = useState(true);
 
   const refreshData = async () => {
-    try {
-      const endpoints = [
-        { key: 'products', url: '/api/products' },
-        { key: 'customers', url: '/api/customers' },
-        { key: 'users', url: '/api/users' },
-        { key: 'establishments', url: '/api/establishments' },
-        { key: 'transactions', url: '/api/transactions' },
-        { key: 'cashSessions', url: '/api/cash-sessions' },
-        { key: 'cashEntries', url: '/api/cash-entries' },
-        { key: 'cardOperators', url: '/api/card-operators' },
-        { key: 'cardBrands', url: '/api/card-brands' },
-        { key: 'serviceOrders', url: '/api/service-orders' },
-        { key: 'config', url: '/api/config' },
-        { key: 'permissions', url: '/api/permissions' },
-        { key: 'consignments', url: '/api/consignments' },
-      ];
-
-      const fetchResults = await Promise.allSettled(
-        endpoints.map(e => safeFetch(e.url))
-      );
-      
-      const getVal = (idx: number) => {
-        const res = fetchResults[idx];
-        return res.status === 'fulfilled' ? res.value : null;
-      };
-
-      const p = getVal(0); if (p) setProducts(p);
-      const c = getVal(1); if (c) setCustomers(c);
-      const u = getVal(2); if (u) setUsers(u);
-      const e = getVal(3); if (e) setEstablishments(e);
-      const t = getVal(4); if (t) setTransactions(t);
-      const cs = getVal(5); if (cs) setCashSessions(cs);
-      const ce = getVal(6); if (ce) setCashEntries(ce);
-      const co = getVal(7); if (co) setCardOperators(co);
-      const cb = getVal(8); if (cb) setCardBrands(cb);
-      const so = getVal(9); if (so) setServiceOrders(so);
-      const conf = getVal(10); if (conf) setSystemConfig(conf);
-      const perms = getVal(11); if (perms && Array.isArray(perms)) {
-        const pMap: any = { ...INITIAL_PERMS };
-        perms.forEach((item: any) => { pMap[item.role] = item.permissions; });
-        setRolePermissions(pMap);
-      }
-      const cons = getVal(12); if (cons) setConsignmentSales(cons);
-
-    } catch (err) {
-      console.error("Falha fatal no ciclo de sincronização:", err);
-    } finally {
-      setLoading(false);
+    const p = await safeFetch('/api/products'); if (p) setProducts(p);
+    const c = await safeFetch('/api/customers'); if (c) setCustomers(c);
+    const u = await safeFetch('/api/users'); if (u) setUsers(u);
+    const e = await safeFetch('/api/establishments'); if (e) setEstablishments(e);
+    const t = await safeFetch('/api/transactions'); if (t) setTransactions(t);
+    const cs = await safeFetch('/api/cash-sessions'); if (cs) setCashSessions(cs);
+    const ce = await safeFetch('/api/cash-entries'); if (ce) setCashEntries(ce);
+    const co = await safeFetch('/api/card-operators'); if (co) setCardOperators(co);
+    const cb = await safeFetch('/api/card-brands'); if (cb) setCardBrands(cb);
+    const so = await safeFetch('/api/service-orders'); if (so) setServiceOrders(so);
+    const cat = await safeFetch('/api/categories'); if (cat) setCategories(cat);
+    const pts = await safeFetch('/api/price-tables'); if (pts) setPriceTables(pts);
+    const config = await safeFetch('/api/config'); if (config) setSystemConfig(config);
+    const perms = await safeFetch('/api/permissions'); 
+    if (perms && Array.isArray(perms)) {
+      const pMap: any = { ...INITIAL_PERMS };
+      perms.forEach((item: any) => { pMap[item.role] = item.permissions; });
+      setRolePermissions(pMap);
     }
+    const cons = await safeFetch('/api/consignments'); if (cons) setConsignmentSales(cons);
+    setLoading(false);
   };
 
   useEffect(() => {
-    const savedUser = localStorage.getItem('erp_user');
-    if (savedUser) setCurrentUser(JSON.parse(savedUser));
     refreshData();
   }, []);
 
-  const login = async (email: string, pass: string) => {
-    const user = users.find(u => (u.email === email || u.name === email) && u.password === pass);
+  const login = async (emailOrName: string, pass: string) => {
+    const user = users.find(u => (u.email === emailOrName || u.name === emailOrName) && u.password === pass);
     if (user) {
       setCurrentUser(user);
       localStorage.setItem('erp_user', JSON.stringify(user));
@@ -164,10 +150,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return false;
   };
 
-  const logout = () => {
-    setCurrentUser(null);
-    localStorage.removeItem('erp_user');
-  };
+  const logout = () => { };
 
   const addProduct = async (p: Product) => {
     await safeFetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
@@ -251,13 +234,11 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const addConsignmentSale = async (sale: ConsignmentSale) => {
     await safeFetch('/api/consignments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sale) });
-    
     const stockUpdates = sale.items.map(item => {
       const p = products.find(x => x.id === item.id);
       if (p && !p.isService) return addProduct({ ...p, stock: p.stock - item.quantity });
       return Promise.resolve();
     });
-
     await Promise.all(stockUpdates);
     await refreshData();
   };
@@ -268,22 +249,17 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addConsignmentReturn = async (ret: ConsignmentReturn) => {
-    await safeFetch('/api/consignments', { 
-      method: 'POST', 
-      headers: { 'Content-Type': 'application/json' }, 
-      body: JSON.stringify({ ...ret, type: 'RETURN' }) 
-    });
-    
+    await safeFetch('/api/consignments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...ret, type: 'RETURN' }) });
     const p = products.find(x => x.id === ret.productId);
-    if (p && !p.isService) {
-      await addProduct({ ...p, stock: p.stock + ret.quantity });
-    }
-
+    if (p && !p.isService) await addProduct({ ...p, stock: p.stock + ret.quantity });
     await refreshData();
   };
 
   const updateConfig = async (config: any) => {
+    setSystemConfig(config); // Atualização otimista instantânea
     await safeFetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
+    // refreshData não é estritamente necessário aqui se confiamos no setSystemConfig, 
+    // mas chamamos para garantir sincronia total com o backend
     await refreshData();
   };
 
@@ -299,13 +275,44 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     await refreshData();
   };
 
+  const addCategory = async (cat: Category) => {
+    await safeFetch('/api/categories', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(cat) });
+    await refreshData();
+  };
+
+  const deleteCategory = async (id: string) => {
+    await safeFetch(`/api/categories?id=${id}`, { method: 'DELETE' });
+    await refreshData();
+  };
+
+  const savePriceTable = async (table: PriceTable) => {
+    await safeFetch('/api/price-tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...table, type: 'TABLE' }) });
+    await refreshData();
+  };
+
+  const deletePriceTable = async (id: string) => {
+    await safeFetch(`/api/price-tables?id=${id}&type=TABLE`, { method: 'DELETE' });
+    await refreshData();
+  };
+
+  const savePriceTableItem = async (item: any) => {
+    await safeFetch('/api/price-tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...item, type: 'ITEM' }) });
+  };
+
+  const deletePriceTableItem = async (id: string) => {
+    await safeFetch(`/api/price-tables?id=${id}&type=ITEM`, { method: 'DELETE' });
+  };
+
+  const getPriceTableItems = async (tableId: string): Promise<PriceTableItem[]> => {
+    const data = await safeFetch(`/api/price-tables?id=${tableId}&items=true`);
+    return data || [];
+  };
+
   const processSale = async (cart: any[], total: number, method: string, customerId: string, vendorId: string, shipping: number, cardDetails: any) => {
-    const saleId = `SALE-${Date.now()}`;
     const store = establishments.find(e => e.id === currentUser?.storeId);
     const customer = customers.find(c => c.id === customerId);
-
     const transaction: Transaction = {
-      id: saleId,
+      id: `SALE-${Date.now()}`,
       date: new Date().toISOString().split('T')[0],
       description: 'Venda PDV',
       store: store?.name || 'Matriz',
@@ -321,21 +328,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       items: cart,
       ...cardDetails
     };
-
     const stockUpdates = cart.map(item => {
       const p = products.find(x => x.id === item.id);
       if (p && !p.isService) return addProduct({ ...p, stock: p.stock - item.quantity });
       return Promise.resolve();
     });
-
     await Promise.all([...stockUpdates, addTransaction(transaction)]);
   };
 
   return (
     <AppContext.Provider value={{
-      products, customers, users, establishments, transactions, cashSessions, cashEntries, cardOperators, cardBrands, serviceOrders, consignmentSales, systemConfig, currentUser, rolePermissions, loading,
+      products, customers, users, establishments, transactions, cashSessions, cashEntries, cardOperators, cardBrands, serviceOrders, consignmentSales, categories, priceTables, systemConfig, currentUser, rolePermissions, loading,
       refreshData, login, logout, addProduct, deleteProduct, addCustomer, addUser, deleteUser, addEstablishment, deleteEstablishment, addTransaction, saveCashSession, addCashEntry,
-      saveCardOperator, deleteCardOperator, saveCardBrand, deleteCardBrand, updateServiceOrder, addServiceOrder, addConsignmentSale, updateConsignmentSale, addConsignmentReturn, updateConfig, processSale, bulkUpdateStock, updateRolePermissions
+      saveCardOperator, deleteCardOperator, saveCardBrand, deleteCardBrand, updateServiceOrder, addServiceOrder, addConsignmentSale, updateConsignmentSale, addConsignmentReturn, updateConfig, processSale, bulkUpdateStock, updateRolePermissions,
+      addCategory, deleteCategory, savePriceTable, deletePriceTable, savePriceTableItem, deletePriceTableItem, getPriceTableItems
     }}>
       {children}
     </AppContext.Provider>

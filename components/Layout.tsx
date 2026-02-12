@@ -12,7 +12,7 @@ interface MenuItem {
 }
 
 const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, logout, rolePermissions } = useApp();
+  const { currentUser, logout, rolePermissions, systemConfig } = useApp();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -22,11 +22,10 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     'VENDAS': true,
-    'ESTOQUE': false,
+    'ESTOQUE': true,
     'FINANCEIRO': true
   });
 
-  // Gerenciamento do Tema
   useEffect(() => {
     if (theme === 'dark') {
       document.documentElement.classList.add('dark');
@@ -47,7 +46,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       submenu: [
         { path: '/caixa', label: 'CAIXA', icon: 'account_balance_wallet', perm: 'cashControl' },
         { path: '/pdv', label: 'FRENTE DE CAIXA', icon: 'point_of_sale', perm: 'pdv' },
-        { path: '/consignados', label: 'CONSIGNADOS', icon: 'inventory', perm: 'pdv' },
+        { path: '/consignados', label: 'CONSIGNADOS', icon: 'inventory', perm: 'consignment' },
         { path: '/documentos', label: 'DOCUMENTOS', icon: 'receipt_long', perm: 'dashboard' },
         { path: '/clientes', label: 'CLIENTES', icon: 'groups', perm: 'customers' },
         { path: '/relatorios', label: 'RELATÓRIOS', icon: 'monitoring', perm: 'reports' },
@@ -58,7 +57,9 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       icon: 'inventory_2',
       perm: 'inventory',
       submenu: [
-        { path: '/estoque', label: 'ESTOQUE', icon: 'inventory_2', perm: 'inventory' },
+        { path: '/estoque', label: 'CATÁLOGO / CADASTRO', icon: 'inventory_2', perm: 'inventory' },
+        { path: '/categorias', label: 'CATEGORIAS', icon: 'category', perm: 'inventory' },
+        { path: '/movimentacao-estoque', label: 'MOVIMENTAÇÃO', icon: 'sync_alt', perm: 'inventory' },
         { path: '/balanco', label: 'BALANÇO', icon: 'inventory', perm: 'balance' },
       ]
     },
@@ -70,7 +71,8 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       submenu: [
         { path: '/entradas', label: 'RECEITAS', icon: 'payments', perm: 'incomes' },
         { path: '/saidas', label: 'DESPESAS', icon: 'money_off', perm: 'expenses' },
-        { path: '/contas-receber', label: 'CONTAS A RECEBER', icon: 'pending_actions', perm: 'financial' },
+        { path: '/contas-receber', label: 'CONTAS A RECEBER', icon: 'pending_actions', perm: 'accountsReceivable' },
+        { path: '/price-tables', label: 'TABELAS DE PREÇO', icon: 'sell', perm: 'financial' },
         { path: '/cartoes', label: 'CARTÕES', icon: 'credit_card', perm: 'cardManagement' },
         { path: '/dre', label: 'DRE', icon: 'account_balance', perm: 'financial' },
       ]
@@ -97,13 +99,17 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
     <div className="flex h-screen bg-background-light dark:bg-[#0b1118] transition-colors duration-300">
       <aside className={`${sidebarOpen ? 'w-72' : 'w-20'} bg-[#101822] border-r border-slate-800 transition-all flex flex-col shadow-2xl z-40`}>
         <div className="p-6 flex items-center gap-4 border-b border-slate-800/50">
-          <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-white shrink-0 shadow-lg shadow-primary/20">
-            <span className="material-symbols-outlined">storefront</span>
+          <div className="size-10 bg-primary rounded-xl flex items-center justify-center text-white shadow-lg shadow-primary/20 overflow-hidden">
+            {systemConfig.logoUrl ? (
+              <img src={systemConfig.logoUrl} className="size-full object-cover" />
+            ) : (
+              <span className="material-symbols-outlined">storefront</span>
+            )}
           </div>
           {sidebarOpen && (
             <div className="min-w-0">
-               <h2 className="font-black text-sm uppercase tracking-tighter text-white truncate">TEM ACESSORIOS</h2>
-               <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">GESTÃO NEON</p>
+               <h2 className="font-black text-sm uppercase tracking-tighter text-white truncate">{systemConfig.companyName || 'TEM ACESSORIOS'}</h2>
+               <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest">GESTÃO CLOUD</p>
             </div>
           )}
         </div>
@@ -199,7 +205,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
            </div>
            
            <div className="flex items-center gap-6">
-              {/* BOTÃO DARK MODE */}
               <button 
                 onClick={toggleTheme}
                 className="size-10 flex items-center justify-center rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:scale-105 transition-all"
@@ -208,7 +213,6 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
                   {theme === 'dark' ? 'light_mode' : 'dark_mode'}
                 </span>
               </button>
-
               <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest hidden sm:block">{new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}</span>
               <div className="h-4 w-px bg-slate-200 dark:bg-slate-800 mx-2"></div>
               <div className="flex items-center gap-3">
