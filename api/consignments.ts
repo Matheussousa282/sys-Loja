@@ -13,14 +13,14 @@ export default async function handler(req: any, res: any) {
         customerId: s.customer_id,
         customerName: s.customer_name,
         date: s.date,
-        grossValue: Number(s.gross_value),
-        discount: Number(s.discount),
-        netValue: Number(s.net_value),
-        paidValue: Number(s.paid_value),
-        balance: Number(s.balance),
+        grossValue: Number(s.gross_value || 0),
+        discount: Number(s.discount || 0),
+        netValue: Number(s.net_value || 0),
+        paidValue: Number(s.paid_value || 0),
+        balance: Number(s.balance || 0),
         status: s.status,
         observation: s.observation,
-        items: s.items,
+        items: s.items || [],
         store: s.store
       }));
       return res.status(200).json(mapped);
@@ -34,11 +34,12 @@ export default async function handler(req: any, res: any) {
       const body = typeof req.body === 'string' ? JSON.parse(req.body) : req.body;
       
       if (body.type === 'RETURN') {
+        const retId = body.id || `RET-${Date.now()}`;
         await sql`
           INSERT INTO consignment_returns (id, consignment_id, product_id, product_name, quantity, value, date, reason)
-          VALUES (${body.id}, ${body.consignmentId}, ${body.productId}, ${body.productName}, ${body.quantity}, ${body.value}, ${body.date}, ${body.reason})
+          VALUES (${retId}, ${body.consignmentId}, ${body.productId}, ${body.productName}, ${body.quantity}, ${body.value}, ${body.date}, ${body.reason})
         `;
-        return res.status(200).json({ success: true });
+        return res.status(200).json({ success: true, id: retId });
       } else {
         await sql`
           INSERT INTO consignment_sales (
@@ -55,9 +56,10 @@ export default async function handler(req: any, res: any) {
             observation = EXCLUDED.observation,
             items = EXCLUDED.items
         `;
-        return res.status(200).json({ success: true });
+        return res.status(200).json({ success: true, id: body.id });
       }
     } catch (e: any) {
+      console.error("API POST Consignments Error:", e);
       return res.status(500).json({ error: e.message });
     }
   }

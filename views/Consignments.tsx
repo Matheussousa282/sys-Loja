@@ -1,17 +1,15 @@
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useApp } from '../AppContext';
-import { ConsignmentSale, ConsignmentStatus, UserRole, Transaction, TransactionStatus } from '../types';
-import { useNavigate } from 'react-router-dom';
+import { ConsignmentSale, ConsignmentStatus, UserRole } from '../types';
 import ConsignmentPDV from './ConsignmentPDV';
 import ConsignmentDetail from './ConsignmentDetail';
 
 const Consignments: React.FC = () => {
-  const { consignmentSales, currentUser, establishments, refreshData } = useApp();
-  const navigate = useNavigate();
+  const { consignmentSales, currentUser, establishments, refreshData, loading } = useApp();
   
   // Filtros
-  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 30)).toISOString().split('T')[0]);
+  const [startDate, setStartDate] = useState(new Date(new Date().setDate(new Date().getDate() - 60)).toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [filterStatus, setFilterStatus] = useState<string>('TODOS');
   const [filterSearch, setFilterSearch] = useState('');
@@ -20,10 +18,15 @@ const Consignments: React.FC = () => {
   const [showPDV, setShowPDV] = useState(false);
   const [selectedSale, setSelectedSale] = useState<ConsignmentSale | null>(null);
 
+  useEffect(() => {
+    refreshData();
+  }, []);
+
   const isAdmin = currentUser?.role === UserRole.ADMIN || currentUser?.role === UserRole.MANAGER;
   const currentStoreName = establishments.find(e => e.id === currentUser?.storeId)?.name || '';
 
   const filteredSales = useMemo(() => {
+    if (!consignmentSales) return [];
     return consignmentSales.filter(s => {
       const matchesStore = isAdmin || s.store === currentStoreName;
       const matchesDate = s.date >= startDate && s.date <= endDate;
@@ -43,10 +46,10 @@ const Consignments: React.FC = () => {
     let totalDiscounts = 0;
 
     filteredSales.forEach(s => {
-      openTotal += s.balance;
-      receivedTotal += s.paidValue;
-      totalDiscounts += s.discount;
-      s.items.forEach(i => totalItems += i.quantity);
+      openTotal += Number(s.balance || 0);
+      receivedTotal += Number(s.paidValue || 0);
+      totalDiscounts += Number(s.discount || 0);
+      if (s.items) s.items.forEach(i => totalItems += Number(i.quantity || 0));
     });
 
     return { 
@@ -62,14 +65,19 @@ const Consignments: React.FC = () => {
   if (selectedSale) return <ConsignmentDetail sale={selectedSale} onBack={() => { setSelectedSale(null); refreshData(); }} />;
 
   return (
-    <div className="p-8 space-y-8 animate-in fade-in duration-500 pb-20">
+    <div className="p-8 space-y-8 animate-in fade-in duration-500 pb-20 bg-slate-50 dark:bg-transparent">
       <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-6">
-        <div>
-          <h1 className="text-4xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">Vendas em Consignado</h1>
-          <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
-            <span className="size-2 bg-primary rounded-full animate-pulse"></span>
-            Controle de Crédito e Retorno de Mercadoria
-          </p>
+        <div className="flex items-center gap-5">
+          <div className="size-16 bg-primary rounded-[1.5rem] flex items-center justify-center text-white shadow-2xl shadow-primary/30">
+             <span className="material-symbols-outlined text-4xl">inventory</span>
+          </div>
+          <div>
+            <h1 className="text-4xl font-black tracking-tighter uppercase text-slate-900 dark:text-white">Vendas em Consignado</h1>
+            <p className="text-slate-500 text-[10px] font-black uppercase tracking-[0.2em] mt-1 flex items-center gap-2">
+              <span className="size-2 bg-primary rounded-full animate-pulse"></span>
+              Controle de Crédito e Retorno de Mercadoria
+            </p>
+          </div>
         </div>
         <button 
           onClick={() => setShowPDV(true)}
@@ -80,8 +88,17 @@ const Consignments: React.FC = () => {
         </button>
       </div>
 
+      {/* CARDS DE RESUMO */}
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
+         <SummaryCard label="Total em Aberto" value={`R$ ${stats.openTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} color="text-rose-500" icon="pending_actions" />
+         <SummaryCard label="Total Recebido" value={`R$ ${stats.receivedTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} color="text-emerald-500" icon="payments" />
+         <SummaryCard label="Qtd. Vendas" value={stats.qty.toString()} color="text-primary" icon="description" />
+         <SummaryCard label="Itens Vendidos" value={stats.totalItems.toLocaleString('pt-BR', {minimumFractionDigits: 2})} color="text-amber-500" icon="shopping_bag" />
+         <SummaryCard label="Descontos" value={`R$ ${stats.totalDiscounts.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} color="text-slate-400" icon="local_offer" />
+      </div>
+
       {/* FILTROS NO TOPO */}
-      <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 grid grid-cols-1 md:grid-cols-5 gap-4 items-end shadow-sm">
+      <div className="bg-white dark:bg-[#101822] p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 grid grid-cols-1 md:grid-cols-5 gap-4 items-end shadow-sm">
          <div className="space-y-1">
             <label className="text-[9px] font-black text-slate-400 uppercase px-2 tracking-widest">Início</label>
             <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} className="w-full h-11 bg-slate-50 dark:bg-slate-800 border-none rounded-xl px-4 text-[10px] font-black uppercase" />
@@ -106,17 +123,8 @@ const Consignments: React.FC = () => {
          </div>
       </div>
 
-      {/* CARDS DE RESUMO */}
-      <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-         <SummaryCard label="Total em Aberto" value={`R$ ${stats.openTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} color="text-rose-500" icon="pending_actions" />
-         <SummaryCard label="Total Recebido" value={`R$ ${stats.receivedTotal.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} color="text-emerald-500" icon="payments" />
-         <SummaryCard label="Qtd. Vendas" value={stats.qty.toString()} color="text-primary" icon="description" />
-         <SummaryCard label="Itens Vendidos" value={stats.totalItems.toString()} color="text-amber-500" icon="shopping_bag" />
-         <SummaryCard label="Descontos" value={`R$ ${stats.totalDiscounts.toLocaleString('pt-BR', {minimumFractionDigits: 2})}`} color="text-slate-400" icon="local_offer" />
-      </div>
-
       {/* TABELA DE VENDAS */}
-      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-[3rem] overflow-hidden shadow-sm">
+      <div className="bg-white dark:bg-[#101822] border border-slate-200 dark:border-slate-800 rounded-[3rem] overflow-hidden shadow-sm">
          <div className="overflow-x-auto">
             <table className="w-full text-left">
                <thead>
@@ -131,7 +139,9 @@ const Consignments: React.FC = () => {
                   </tr>
                </thead>
                <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
-                  {filteredSales.map(s => (
+                  {loading ? (
+                    <tr><td colSpan={7} className="py-24 text-center opacity-30 font-black uppercase">Sincronizando Consignados...</td></tr>
+                  ) : filteredSales.map(s => (
                     <tr key={s.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-all group">
                        <td className="px-8 py-6">
                           <p className="text-xs font-black text-slate-900 dark:text-white uppercase leading-none">#{s.id.slice(-6)}</p>
@@ -143,11 +153,11 @@ const Consignments: React.FC = () => {
                        </td>
                        <td className="px-8 py-6 text-center">
                           <span className="text-xs font-black text-slate-600 dark:text-slate-300 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-lg tabular-nums">
-                            {s.items.reduce((acc, i) => acc + i.quantity, 0)}
+                            {s.items?.reduce((acc, i) => acc + i.quantity, 0) || 0}
                           </span>
                        </td>
-                       <td className="px-8 py-6 text-right font-black text-xs tabular-nums text-slate-700 dark:text-slate-300">R$ {s.netValue.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
-                       <td className="px-8 py-6 text-right font-black text-sm tabular-nums text-rose-500">R$ {s.balance.toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                       <td className="px-8 py-6 text-right font-black text-xs tabular-nums text-slate-700 dark:text-slate-300">R$ {Number(s.netValue || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
+                       <td className="px-8 py-6 text-right font-black text-sm tabular-nums text-rose-500">R$ {Number(s.balance || 0).toLocaleString('pt-BR', {minimumFractionDigits: 2})}</td>
                        <td className="px-8 py-6 text-center">
                           <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase ${
                              s.status === ConsignmentStatus.PAID ? 'bg-emerald-500/10 text-emerald-500' :
@@ -166,7 +176,7 @@ const Consignments: React.FC = () => {
                        </td>
                     </tr>
                   ))}
-                  {filteredSales.length === 0 && (
+                  {!loading && filteredSales.length === 0 && (
                     <tr><td colSpan={7} className="py-24 text-center opacity-30 font-black text-[10px] uppercase tracking-[0.3em]">Nenhuma venda consignada localizada</td></tr>
                   )}
                </tbody>
@@ -178,7 +188,7 @@ const Consignments: React.FC = () => {
 };
 
 const SummaryCard = ({ label, value, color, icon }: any) => (
-  <div className="bg-white dark:bg-slate-900 p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
+  <div className="bg-white dark:bg-[#101822] p-6 rounded-[2.5rem] border border-slate-200 dark:border-slate-800 shadow-sm">
      <div className={`size-10 rounded-2xl bg-slate-50 dark:bg-slate-800 flex items-center justify-center ${color} mb-4`}><span className="material-symbols-outlined">{icon}</span></div>
      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">{label}</p>
      <p className={`text-xl font-black tabular-nums ${color}`}>{value}</p>
