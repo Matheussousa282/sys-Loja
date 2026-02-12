@@ -56,6 +56,29 @@ export const INITIAL_PERMS: Record<string, RolePermissions> = {
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
+const safeFetch = async (url: string, options?: RequestInit) => {
+  try {
+    const res = await fetch(url, options);
+    const contentType = res.headers.get("content-type");
+    
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => "Sem detalhes");
+      console.error(`ERRO API [${url}] Status ${res.status}:`, errorText);
+      throw new Error(`HTTP ${res.status}`);
+    }
+
+    if (contentType && contentType.includes("application/json")) {
+      return await res.json();
+    }
+    
+    // Se não for JSON, apenas consome o texto para liberar a stream
+    await res.text();
+    return null;
+  } catch (e: any) {
+    throw e;
+  }
+};
+
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
@@ -75,41 +98,51 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const refreshData = async () => {
     try {
-      const [p, c, u, e, t, cs, ce, co, cb, so, conf, perms, cons] = await Promise.all([
-        fetch('/api/products').then(r => r.json()),
-        fetch('/api/customers').then(r => r.json()),
-        fetch('/api/users').then(r => r.json()),
-        fetch('/api/establishments').then(r => r.json()),
-        fetch('/api/transactions').then(r => r.json()),
-        fetch('/api/cash-sessions').then(r => r.json()),
-        fetch('/api/cash-entries').then(r => r.json()),
-        fetch('/api/card-operators').then(r => r.json()),
-        fetch('/api/card-brands').then(r => r.json()),
-        fetch('/api/service-orders').then(r => r.json()),
-        fetch('/api/config').then(r => r.json()),
-        fetch('/api/permissions').then(r => r.json()),
-        fetch('/api/consignments').then(r => r.json()),
-      ]);
-      setProducts(p || []);
-      setCustomers(c || []);
-      setUsers(u || []);
-      setEstablishments(e || []);
-      setTransactions(t || []);
-      setCashSessions(cs || []);
-      setCashEntries(ce || []);
-      setCardOperators(co || []);
-      setCardBrands(cb || []);
-      setServiceOrders(so || []);
-      setSystemConfig(conf || { companyName: 'ERP Retail', returnPeriodDays: 30 });
-      setConsignmentSales(cons || []);
+      const endpoints = [
+        { key: 'products', url: '/api/products' },
+        { key: 'customers', url: '/api/customers' },
+        { key: 'users', url: '/api/users' },
+        { key: 'establishments', url: '/api/establishments' },
+        { key: 'transactions', url: '/api/transactions' },
+        { key: 'cashSessions', url: '/api/cash-sessions' },
+        { key: 'cashEntries', url: '/api/cash-entries' },
+        { key: 'cardOperators', url: '/api/card-operators' },
+        { key: 'cardBrands', url: '/api/card-brands' },
+        { key: 'serviceOrders', url: '/api/service-orders' },
+        { key: 'config', url: '/api/config' },
+        { key: 'permissions', url: '/api/permissions' },
+        { key: 'consignments', url: '/api/consignments' },
+      ];
+
+      const fetchResults = await Promise.allSettled(
+        endpoints.map(e => safeFetch(e.url))
+      );
       
-      if (perms && perms.length > 0) {
+      const getVal = (idx: number) => {
+        const res = fetchResults[idx];
+        return res.status === 'fulfilled' ? res.value : null;
+      };
+
+      const p = getVal(0); if (p) setProducts(p);
+      const c = getVal(1); if (c) setCustomers(c);
+      const u = getVal(2); if (u) setUsers(u);
+      const e = getVal(3); if (e) setEstablishments(e);
+      const t = getVal(4); if (t) setTransactions(t);
+      const cs = getVal(5); if (cs) setCashSessions(cs);
+      const ce = getVal(6); if (ce) setCashEntries(ce);
+      const co = getVal(7); if (co) setCardOperators(co);
+      const cb = getVal(8); if (cb) setCardBrands(cb);
+      const so = getVal(9); if (so) setServiceOrders(so);
+      const conf = getVal(10); if (conf) setSystemConfig(conf);
+      const perms = getVal(11); if (perms && Array.isArray(perms)) {
         const pMap: any = { ...INITIAL_PERMS };
         perms.forEach((item: any) => { pMap[item.role] = item.permissions; });
         setRolePermissions(pMap);
       }
+      const cons = getVal(12); if (cons) setConsignmentSales(cons);
+
     } catch (err) {
-      console.error("Refresh Data Error:", err);
+      console.error("Falha fatal no ciclo de sincronização:", err);
     } finally {
       setLoading(false);
     }
@@ -137,104 +170,87 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const addProduct = async (p: Product) => {
-    const res = await fetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
-    await res.json();
+    await safeFetch('/api/products', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(p) });
     await refreshData();
   };
 
   const deleteProduct = async (id: string) => {
-    const res = await fetch(`/api/products?id=${id}`, { method: 'DELETE' });
-    await res.json();
+    await safeFetch(`/api/products?id=${id}`, { method: 'DELETE' });
     await refreshData();
   };
 
   const addCustomer = async (c: Customer) => {
-    const res = await fetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
-    await res.json();
+    await safeFetch('/api/customers', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(c) });
     await refreshData();
   };
 
   const addUser = async (u: User) => {
-    const res = await fetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(u) });
-    await res.json();
+    await safeFetch('/api/users', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(u) });
     await refreshData();
   };
 
   const deleteUser = async (id: string) => {
-    const res = await fetch(`/api/users?id=${id}`, { method: 'DELETE' });
-    await res.json();
+    await safeFetch(`/api/users?id=${id}`, { method: 'DELETE' });
     await refreshData();
   };
 
   const addEstablishment = async (e: Establishment) => {
-    const res = await fetch('/api/establishments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) });
-    await res.json();
+    await safeFetch('/api/establishments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) });
     await refreshData();
   };
 
   const deleteEstablishment = async (id: string) => {
-    const res = await fetch(`/api/establishments?id=${id}`, { method: 'DELETE' });
-    await res.json();
+    await safeFetch(`/api/establishments?id=${id}`, { method: 'DELETE' });
     await refreshData();
   };
 
   const addTransaction = async (t: Transaction) => {
-    const res = await fetch('/api/transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
-    await res.json();
+    await safeFetch('/api/transactions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(t) });
     await refreshData();
   };
 
   const saveCashSession = async (s: CashSession) => {
-    const res = await fetch('/api/cash-sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
-    await res.json();
+    await safeFetch('/api/cash-sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(s) });
     await refreshData();
   };
 
   const addCashEntry = async (e: CashEntry) => {
-    const res = await fetch('/api/cash-entries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) });
-    await res.json();
+    await safeFetch('/api/cash-entries', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(e) });
     await refreshData();
   };
 
   const saveCardOperator = async (o: CardOperator) => {
-    const res = await fetch('/api/card-operators', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
-    await res.json();
+    await safeFetch('/api/card-operators', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(o) });
     await refreshData();
   };
 
   const deleteCardOperator = async (id: string) => {
-    const res = await fetch(`/api/card-operators?id=${id}`, { method: 'DELETE' });
-    await res.json();
+    await safeFetch(`/api/card-operators?id=${id}`, { method: 'DELETE' });
     await refreshData();
   };
 
   const saveCardBrand = async (b: CardBrand) => {
-    const res = await fetch('/api/card-brands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
-    await res.json();
+    await safeFetch('/api/card-brands', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) });
     await refreshData();
   };
 
   const deleteCardBrand = async (id: string) => {
-    const res = await fetch(`/api/card-brands?id=${id}`, { method: 'DELETE' });
-    await res.json();
+    await safeFetch(`/api/card-brands?id=${id}`, { method: 'DELETE' });
     await refreshData();
   };
 
   const updateServiceOrder = async (os: ServiceOrder) => {
-    const res = await fetch('/api/service-orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(os) });
-    await res.json();
+    await safeFetch('/api/service-orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(os) });
     await refreshData();
   };
 
   const addServiceOrder = async (os: ServiceOrder) => {
-    const res = await fetch('/api/service-orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(os) });
-    await res.json();
+    await safeFetch('/api/service-orders', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(os) });
     await refreshData();
   };
 
   const addConsignmentSale = async (sale: ConsignmentSale) => {
-    const res = await fetch('/api/consignments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sale) });
-    await res.json();
+    await safeFetch('/api/consignments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sale) });
     
     const stockUpdates = sale.items.map(item => {
       const p = products.find(x => x.id === item.id);
@@ -247,18 +263,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateConsignmentSale = async (sale: ConsignmentSale) => {
-    const res = await fetch('/api/consignments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sale) });
-    await res.json();
+    await safeFetch('/api/consignments', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(sale) });
     await refreshData();
   };
 
   const addConsignmentReturn = async (ret: ConsignmentReturn) => {
-    const res = await fetch('/api/consignments', { 
+    await safeFetch('/api/consignments', { 
       method: 'POST', 
       headers: { 'Content-Type': 'application/json' }, 
       body: JSON.stringify({ ...ret, type: 'RETURN' }) 
     });
-    await res.json();
     
     const p = products.find(x => x.id === ret.productId);
     if (p && !p.isService) {
@@ -269,8 +283,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateConfig = async (config: any) => {
-    const res = await fetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
-    await res.json();
+    await safeFetch('/api/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(config) });
     await refreshData();
   };
 
@@ -282,8 +295,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   };
 
   const updateRolePermissions = async (role: string, perms: RolePermissions) => {
-    const res = await fetch('/api/permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role, permissions: perms }) });
-    await res.json();
+    await safeFetch('/api/permissions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role, permissions: perms }) });
     await refreshData();
   };
 
