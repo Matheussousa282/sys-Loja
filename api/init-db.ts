@@ -105,12 +105,13 @@ export default async function handler(req: any, res: any) {
       )
     `;
 
-    // Tabela de Vendas Consignadas
+    // Tabela de Vendas Consignadas (Atualizada com vendor_id)
     await sql`
       CREATE TABLE IF NOT EXISTS consignment_sales (
         id TEXT PRIMARY KEY,
         customer_id TEXT NOT NULL,
         customer_name TEXT NOT NULL,
+        vendor_id TEXT,
         date TEXT NOT NULL,
         gross_value DECIMAL(10,2) NOT NULL,
         discount DECIMAL(10,2) DEFAULT 0,
@@ -123,6 +124,9 @@ export default async function handler(req: any, res: any) {
         store TEXT
       )
     `;
+    
+    // Tentar adicionar coluna vendor_id se não existir
+    try { await sql`ALTER TABLE consignment_sales ADD COLUMN IF NOT EXISTS vendor_id TEXT`; } catch(e) {}
 
     // Tabela de Devoluções de Consignado
     await sql`

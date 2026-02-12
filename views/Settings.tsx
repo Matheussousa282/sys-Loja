@@ -110,6 +110,7 @@ const Settings: React.FC = () => {
   const handleSyncDB = async () => {
      if(confirm("Deseja forçar a sincronização de tabelas com o banco Neon? Isso garantirá que todas as colunas novas existam.")) {
         const res = await fetch('/api/init-db');
+        await res.json(); // Consume response to avoid stream errors
         if (res.ok) {
           await refreshData();
           alert("Sincronização Neon concluída com sucesso!");

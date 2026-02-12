@@ -19,7 +19,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({
     'VENDAS': true,
     'ESTOQUE': false,
-    'FINANCEIRO': false
+    'FINANCEIRO': true
   });
 
   const menuStructure: MenuItem[] = [
@@ -54,6 +54,7 @@ const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
       submenu: [
         { path: '/entradas', label: 'RECEITAS', icon: 'payments', perm: 'incomes' },
         { path: '/saidas', label: 'DESPESAS', icon: 'money_off', perm: 'expenses' },
+        { path: '/contas-receber', label: 'CONTAS A RECEBER', icon: 'pending_actions', perm: 'financial' },
         { path: '/cartoes', label: 'CARTÕES', icon: 'credit_card', perm: 'cardManagement' },
         { path: '/dre', label: 'DRE', icon: 'account_balance', perm: 'financial' },
       ]

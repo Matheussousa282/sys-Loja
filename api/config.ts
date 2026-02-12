@@ -37,8 +37,8 @@ export default async function handler(req: any, res: any) {
         companyName: config.company_name,
         logoUrl: config.logo_url,
         taxRegime: config.tax_regime,
-        allowNegativeStock: config.allow_negative_stock,
-        returnPeriodDays: config.return_period_days
+        allowNegativeStock: !!config.allow_negative_stock,
+        returnPeriodDays: Number(config.return_period_days || 30)
       });
     }
 
@@ -47,7 +47,7 @@ export default async function handler(req: any, res: any) {
       
       await sql`
         INSERT INTO system_configs (id, company_name, logo_url, tax_regime, allow_negative_stock, return_period_days)
-        VALUES ('main', ${companyName}, ${logoUrl}, ${taxRegime}, ${allowNegativeStock}, ${returnPeriodDays || 30})
+        VALUES ('main', ${companyName || 'ERP Retail'}, ${logoUrl || null}, ${taxRegime || 'Simples Nacional'}, ${!!allowNegativeStock}, ${Number(returnPeriodDays) || 30})
         ON CONFLICT (id) DO UPDATE SET
           company_name = EXCLUDED.company_name,
           logo_url = EXCLUDED.logo_url,
@@ -58,7 +58,10 @@ export default async function handler(req: any, res: any) {
       
       return res.status(200).json({ success: true });
     }
+    
+    return res.status(405).json({ error: 'Method not allowed' });
   } catch (error: any) {
+    console.error("API Config Error:", error);
     return res.status(500).json({ error: error.message });
   }
 }

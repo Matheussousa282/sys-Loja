@@ -84,7 +84,6 @@ export interface CashSession {
   priceTable: string; 
 }
 
-// Added CashEntry interface to fix import error in views/CashMovement.tsx
 export interface CashEntry {
   id: string;
   sessionId: string;
@@ -114,6 +113,7 @@ export interface ConsignmentSale {
   id: string;
   customerId: string;
   customerName: string;
+  vendorId?: string; // NOVO: Vendedor vinculado
   date: string;
   grossValue: number;
   discount: number;
@@ -159,7 +159,7 @@ export interface Transaction {
   transactionSku?: string;
   cardOperatorId?: string;
   cardBrandId?: string;
-  consignmentId?: string; // Vinculo opcional
+  consignmentId?: string;
 }
 
 export interface User {

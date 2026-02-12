@@ -18,6 +18,7 @@ import CashMovement from './views/CashMovement';
 import CardManagement from './views/CardManagement';
 import SalesInquiry from './views/SalesInquiry';
 import Consignments from './views/Consignments';
+import AccountsReceivable from './views/AccountsReceivable';
 import { UserRole } from './types';
 
 const ProtectedRoute = ({ children, perm }: { children?: React.ReactNode, perm?: string }) => {
@@ -71,6 +72,7 @@ const AppRoutes: React.FC = () => {
       <Route path="/servicos" element={<Layout><ProtectedRoute perm="serviceOrders"><ServiceOrders /></ProtectedRoute></Layout>} />
       <Route path="/entradas" element={<Layout><ProtectedRoute perm="incomes"><Transactions type="INCOME" /></ProtectedRoute></Layout>} />
       <Route path="/saidas" element={<Layout><ProtectedRoute perm="expenses"><Transactions type="EXPENSE" /></ProtectedRoute></Layout>} />
+      <Route path="/contas-receber" element={<Layout><ProtectedRoute perm="financial"><AccountsReceivable /></ProtectedRoute></Layout>} />
       <Route path="/cartoes" element={<Layout><ProtectedRoute perm="cardManagement"><CardManagement /></ProtectedRoute></Layout>} />
       <Route path="/dre" element={<Layout><ProtectedRoute perm="financial"><DRE /></ProtectedRoute></Layout>} />
       <Route path="/config" element={<Layout><ProtectedRoute perm="settings"><Settings /></ProtectedRoute></Layout>} />

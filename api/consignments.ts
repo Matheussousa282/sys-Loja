@@ -12,6 +12,7 @@ export default async function handler(req: any, res: any) {
         id: s.id,
         customerId: s.customer_id,
         customerName: s.customer_name,
+        vendorId: s.vendor_id,
         date: s.date,
         grossValue: Number(s.gross_value || 0),
         discount: Number(s.discount || 0),
@@ -43,10 +44,10 @@ export default async function handler(req: any, res: any) {
       } else {
         await sql`
           INSERT INTO consignment_sales (
-            id, customer_id, customer_name, date, gross_value, discount, net_value, paid_value, balance, status, observation, items, store
+            id, customer_id, customer_name, vendor_id, date, gross_value, discount, net_value, paid_value, balance, status, observation, items, store
           )
           VALUES (
-            ${body.id}, ${body.customerId}, ${body.customerName}, ${body.date}, ${body.grossValue}, ${body.discount}, 
+            ${body.id}, ${body.customerId}, ${body.customerName}, ${body.vendorId || null}, ${body.date}, ${body.grossValue}, ${body.discount}, 
             ${body.netValue}, ${body.paidValue}, ${body.balance}, ${body.status}, ${body.observation}, ${JSON.stringify(body.items)}, ${body.store}
           )
           ON CONFLICT (id) DO UPDATE SET
@@ -54,7 +55,8 @@ export default async function handler(req: any, res: any) {
             balance = EXCLUDED.balance,
             status = EXCLUDED.status,
             observation = EXCLUDED.observation,
-            items = EXCLUDED.items
+            items = EXCLUDED.items,
+            vendor_id = EXCLUDED.vendor_id
         `;
         return res.status(200).json({ success: true, id: body.id });
       }
